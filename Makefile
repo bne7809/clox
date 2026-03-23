@@ -1,6 +1,6 @@
 NAME = clox
 
-SRCS = ./src/main.c ./src/chunk.c ./src/memory.c ./src/debug.c ./src/value.c ./src/line_encoding.c
+SRCS = ./src/main.c ./src/chunk.c ./src/memory.c ./src/debug.c ./src/value.c ./src/line_encoding.c ./src/vm.c
 
 OBJS = $(SRCS:./src/%.c=./bin/%.o)
 

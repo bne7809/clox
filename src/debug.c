@@ -30,7 +30,7 @@ static int constantLongInstruction(const char *name, Chunk *chunk, int offset)
 
 void disassembleChunk(Chunk *chunk, const char *name)
 {
-	printf("== %s ==\n", name);
+	printf("== BEGIN %s ==\n\n", name);
 	int offset = 0;
 	int curr_line = 0;
 	int total = 0;
@@ -68,6 +68,7 @@ void disassembleChunk(Chunk *chunk, const char *name)
 			break;
 		}
 	}
+	printf("\n== END %s ==\n\n", name);
 }
 
 int getLine(Chunk *chunk, int index)
