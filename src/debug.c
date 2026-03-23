@@ -1,13 +1,6 @@
 #include <stdio.h>
 #include "chunk.h"
 
-typedef struct
-{
-	int curr_line;
-	int total;
-	int index;
-} DisasmState;
-
 static int simpleInstruction(const char *name, int offset)
 {
 	printf("%s\n", name);
@@ -35,45 +28,45 @@ static int constantLongInstruction(const char *name, Chunk *chunk, int offset)
 	return offset + 4;
 }
 
-static int disassembleInstruction(Chunk *chunk, int offset, DisasmState *state)
-{
-	printf("%04d ", offset);
-	while (state->index < chunk->lineData.count)
-	{
-		if (state->total > offset) break;
-		state->total += chunk->lineData.data[state->index++].num;
-	}
-	int line = chunk->lineData.data[state->index - 1].line;
-	if (offset > 0 && line == state->curr_line)
-	{
-		printf("   | ");
-	} else {
-		printf("%4d ", line);
-		state->curr_line = line;
-	}
-	uint8_t inst = chunk->code[offset];
-	switch (inst)
-	{
-	case OP_CONSTANT_LONG:
-		return constantLongInstruction("OP_CONSTANT_LONG", chunk, offset);
-	case OP_CONSTANT:
-		return constantInstruction("OP_CONSTANT", chunk, offset);
-	case OP_RETURN:
-		return simpleInstruction("OP_RETURN", offset);
-	default:
-		printf("Unknown opcode %d\n", inst);
-		return offset + 1;
-	}
-}
-
 void disassembleChunk(Chunk *chunk, const char *name)
 {
 	printf("== %s ==\n", name);
 	int offset = 0;
-	DisasmState state = {};
+	int curr_line = 0;
+	int total = 0;
+	int lineDataIndex = 0;
 	while (offset < chunk->count)
 	{
-		offset = disassembleInstruction(chunk, offset, &state);
+		printf("%04d ", offset);
+		while (total <= offset)
+		{
+			total += chunk->lineData.data[lineDataIndex++].num;
+		}
+		int line = chunk->lineData.data[lineDataIndex - 1].line;
+		if (offset > 0 && line == curr_line)
+		{
+			printf("   | ");
+		} else {
+			printf("%4d ", line);
+			curr_line = line;
+		}
+		uint8_t inst = chunk->code[offset];
+		switch (inst)
+		{
+		case OP_CONSTANT_LONG:
+			offset = constantLongInstruction("OP_CONSTANT_LONG", chunk, offset);
+			break;
+		case OP_CONSTANT:
+			offset = constantInstruction("OP_CONSTANT", chunk, offset);
+			break;
+		case OP_RETURN:
+			offset = simpleInstruction("OP_RETURN", offset);
+			break;
+		default:
+			printf("Unknown opcode %d\n", inst);
+			++offset;
+			break;
+		}
 	}
 }
 
