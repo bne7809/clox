@@ -7,10 +7,21 @@ static VM vm;
 
 void initVM()
 {
+	vm.stackTop = vm.stack;
 }
 
 void freeVM()
 {
+}
+
+static void push(Value val)
+{
+	*vm.stackTop++ = val;
+}
+
+static Value pop()
+{
+	return *--vm.stackTop;
 }
 
 static InterpretResult run()
@@ -23,6 +34,14 @@ static InterpretResult run()
 	while (1)
 	{
 #ifdef DEBUG_TRACE_EXECUTION
+		printf("          ");
+		for (Value *v = vm.stack; v < vm.stackTop; ++v)
+		{
+			printf("[ ");
+			printValue(*v);
+			printf(" ]");
+		}
+		printf("\n");
 		int offset = vm.ip - vm.chunk->code;
 		printf("%04d ", offset);
 		while (total <= offset)
@@ -50,8 +69,7 @@ static InterpretResult run()
 			printValue(val);
 			printf("'\n");
 #endif
-			printValue(val);
-			printf("\n");
+			push(val);
 			break;
 		}
 		case OP_CONSTANT_LONG:
@@ -66,14 +84,61 @@ static InterpretResult run()
 			printValue(val);
 			printf("'\n");
 #endif
-			printValue(val);
-			printf("\n");
+			push(val);
 			break;
 		}
+		case OP_ADD:
+		{
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("OP_ADD\n");
+#endif
+			Value a = pop();
+			Value b = pop();
+			push(b + a);
+			break;
+		}
+		case OP_SUBTRACT:
+		{
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("OP_SUBTRACT\n");
+#endif
+			Value a = pop();
+			Value b = pop();
+			push(b - a);
+			break;
+		}
+		case OP_MULTIPLY:
+		{
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("OP_MULTIPLY\n");
+#endif
+			Value a = pop();
+			Value b = pop();
+			push(b * a);
+			break;
+		}
+		case OP_DIVIDE:
+		{
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("OP_DIVIDE\n");
+#endif
+			Value a = pop();
+			Value b = pop();
+			push(b / a);
+			break;
+		}
+		case OP_NEGATE:
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("OP_NEGATE\n");
+#endif
+			vm.stackTop[-1] = -vm.stackTop[-1];
+			break;
 		case OP_RETURN:
 #ifdef DEBUG_TRACE_EXECUTION
 			printf("OP_RETURN\n");
 #endif
+			printValue(pop());
+			printf("\n");
 			return INTERPRET_OK;
 		}
 	}

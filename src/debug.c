@@ -59,6 +59,21 @@ void disassembleChunk(Chunk *chunk, const char *name)
 		case OP_CONSTANT:
 			offset = constantInstruction("OP_CONSTANT", chunk, offset);
 			break;
+		case OP_ADD:
+			offset = simpleInstruction("OP_ADD", offset);
+			break;
+		case OP_SUBTRACT:
+			offset = simpleInstruction("OP_SUBTRACT", offset);
+			break;
+		case OP_MULTIPLY:
+			offset = simpleInstruction("OP_MULTIPLY", offset);
+			break;
+		case OP_DIVIDE:
+			offset = simpleInstruction("OP_DIVIDE", offset);
+			break;
+		case OP_NEGATE:
+			offset = simpleInstruction("OP_NEGATE", offset);
+			break;
 		case OP_RETURN:
 			offset = simpleInstruction("OP_RETURN", offset);
 			break;
