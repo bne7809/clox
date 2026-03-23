@@ -1,12 +1,12 @@
-#include "chunk.h"
 #include "memory.h"
+#include "chunk.h"
 
 void initChunk(Chunk *chunk)
 {
 	chunk->capacity = 0;
 	chunk->count = 0;
 	chunk->code = NULL;
-	chunk->lines = NULL;
+	initLineEncoding(&chunk->lineData);
 	initValueArray(&chunk->constants);
 }
 
@@ -16,23 +16,31 @@ void writeChunk(Chunk *chunk, uint8_t byte, int line)
 	{
 		chunk->capacity = GROW_CAPACITY(chunk->capacity);
 		chunk->code = GROW_ARRAY(uint8_t, chunk->code, chunk->capacity);
-		chunk->lines = GROW_ARRAY(int, chunk->lines, chunk->capacity);
 	}
-	chunk->code[chunk->count] = byte;
-	chunk->lines[chunk->count] = line;
-	++chunk->count;
+	chunk->code[chunk->count++] = byte;
+	writeLineEncoding(&chunk->lineData, line);
 }
 
 void freeChunk(Chunk *chunk)
 {
 	FREE_ARRAY(chunk->code);
-	FREE_ARRAY(chunk->lines);
+	freeLineEncoding(&chunk->lineData);
 	freeValueArray(&chunk->constants);
 	initChunk(chunk);
 }
 
-int addConstant(Chunk *chunk, Value value)
+void writeConstant(Chunk *chunk, Value value, int line)
 {
 	writeValueArray(&chunk->constants, value);
-	return chunk->constants.count - 1;
+	int const_index = chunk->constants.count - 1;
+	if (const_index > 255)
+	{
+		writeChunk(chunk, OP_CONSTANT_LONG, line);
+		writeChunk(chunk, const_index & 255, line);
+		writeChunk(chunk, (const_index >> 8) & 255, line);
+		writeChunk(chunk, (const_index >> 16) & 255, line);
+	} else {
+		writeChunk(chunk, OP_CONSTANT, line);
+		writeChunk(chunk, const_index, line);
+	}
 }

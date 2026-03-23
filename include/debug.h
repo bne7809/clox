@@ -5,4 +5,6 @@
 
 void disassembleChunk(Chunk *chunk, const char *name);
 
+int getLine(Chunk *chunk, int index);
+
 #endif
