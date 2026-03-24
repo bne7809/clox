@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include "chunk.h"
+#include "scanner.h"
 
 static int simpleInstruction(const char *name, int offset)
 {
@@ -96,4 +97,23 @@ int getLine(Chunk *chunk, int index)
 		if (n > index) break;
 	}
 	return chunk->lineData.data[i].line;
+}
+
+void printTokens(const char *source)
+{
+	initScanner(source);
+	int line = -1;
+	while (1)
+	{
+		Token t = scanToken();
+		if (t.line != line)
+		{
+			line = t.line;
+			printf("%4d ", line);
+		} else {
+			printf("   | ");
+		}
+		printf("%-18s '%.*s'\n", tokenToString(t.type), t.length, t.start);
+		if (t.type == TOKEN_EOF) break;
+	}
 }
