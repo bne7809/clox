@@ -1,6 +1,10 @@
 #ifndef COMPILER_H
 #define COMPILER_H
 
-void compile(const char *source);
+#include "chunk.h"
+
+int compile(const char *source, Chunk *chunk);
+
+void resetParser();
 
 #endif

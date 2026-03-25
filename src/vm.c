@@ -1,7 +1,18 @@
+#include <stdio.h>
 #include "compiler.h"
 #include "vm.h"
 
 #define DEBUG_TRACE_EXECUTION
+
+#define STACK_MAX	256
+
+typedef struct
+{
+	Chunk *chunk;
+	uint8_t *ip;
+	Value stack[STACK_MAX];
+	Value *stackTop;
+} VM;
 
 static VM vm;
 
@@ -14,7 +25,6 @@ void freeVM()
 {
 }
 
-#if 0
 static void push(Value val)
 {
 	*vm.stackTop++ = val;
@@ -144,10 +154,20 @@ static InterpretResult run()
 		}
 	}
 }
-#endif
 
-InterpretResult interpret(const char *source)
+InterpretResult interpret(const char *source, int repl)
 {
-	compile(source);
-	return INTERPRET_OK;
+	Chunk chunk;
+	initChunk(&chunk);
+	if (!compile(source, &chunk))
+	{
+		freeChunk(&chunk);
+		if (repl) resetParser();
+		return INTERPRET_COMPILE_ERROR;
+	}
+	vm.chunk = &chunk;
+	vm.ip = chunk.code;
+	InterpretResult result = run();
+	freeChunk(&chunk);
+	return result;
 }

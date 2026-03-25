@@ -116,5 +116,4 @@ void printTokens(const char *source)
 		printf("%-18s '%.*s'\n", tokenToString(t.type), t.length, t.start);
 		if (t.type == TOKEN_EOF) break;
 	}
-	initScanner(source);
 }
