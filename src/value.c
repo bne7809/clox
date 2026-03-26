@@ -27,5 +27,11 @@ void writeValueArray(ValueArray *array, Value value)
 
 void printValue(Value value)
 {
-	printf("%g", value);
+	switch(value.type)
+	{
+	case VAL_NUMBER: printf("%g", value.num); break;
+	case VAL_BOOL: printf("%s", value.boolean ? "true" : "false"); break;
+	case VAL_NIL: printf("nil");
+	default: return;
+	}
 }

@@ -35,6 +35,12 @@ static Value pop()
 	return *--vm.stackTop;
 }
 
+static void runtimeError(const char *str, int line)
+{
+	fprintf(stderr, "%s\n[line %d] in script\n", str, line);
+	vm.stackTop = vm.stack;
+}
+
 static InterpretResult run()
 {
 #ifdef DEBUG_TRACE_EXECUTION
@@ -98,6 +104,30 @@ static InterpretResult run()
 			push(val);
 			break;
 		}
+		case OP_NIL:
+		{
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("OP_NIL\n");
+#endif
+			push((Value){ VAL_NIL, { .num = 0 } });
+			break;
+		}
+		case OP_TRUE:
+		{
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("OP_TRUE\n");
+#endif
+			push((Value){ VAL_BOOL, { .boolean = 1 } });
+			break;
+		}
+		case OP_FALSE:
+		{
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("OP_FALSE\n");
+#endif
+			push((Value){ VAL_BOOL, { .boolean = 0 } });
+			break;
+		}
 		case OP_ADD:
 		{
 #ifdef DEBUG_TRACE_EXECUTION
@@ -105,7 +135,13 @@ static InterpretResult run()
 #endif
 			Value a = pop();
 			Value b = pop();
-			push(b + a);
+			if (a.type != VAL_NUMBER || b.type != VAL_NUMBER)
+			{
+				runtimeError("Operands must be numbers.", curr_line);
+				return INTERPRET_RUNTIME_ERROR;
+			}
+			b.num += a.num;
+			push(b);
 			break;
 		}
 		case OP_SUBTRACT:
@@ -115,7 +151,13 @@ static InterpretResult run()
 #endif
 			Value a = pop();
 			Value b = pop();
-			push(b - a);
+			if (a.type != VAL_NUMBER || b.type != VAL_NUMBER)
+			{
+				runtimeError("Operands must be numbers.", curr_line);
+				return INTERPRET_RUNTIME_ERROR;
+			}
+			b.num -= a.num;
+			push(b);
 			break;
 		}
 		case OP_MULTIPLY:
@@ -125,7 +167,13 @@ static InterpretResult run()
 #endif
 			Value a = pop();
 			Value b = pop();
-			push(b * a);
+			if (a.type != VAL_NUMBER || b.type != VAL_NUMBER)
+			{
+				runtimeError("Operands must be numbers.", curr_line);
+				return INTERPRET_RUNTIME_ERROR;
+			}
+			b.num *= a.num;
+			push(b);
 			break;
 		}
 		case OP_DIVIDE:
@@ -135,14 +183,25 @@ static InterpretResult run()
 #endif
 			Value a = pop();
 			Value b = pop();
-			push(b / a);
+			if (a.type != VAL_NUMBER || b.type != VAL_NUMBER)
+			{
+				runtimeError("Operands must be numbers.", curr_line);
+				return INTERPRET_RUNTIME_ERROR;
+			}
+			b.num /= a.num;
+			push(b);
 			break;
 		}
 		case OP_NEGATE:
 #ifdef DEBUG_TRACE_EXECUTION
 			printf("OP_NEGATE\n");
 #endif
-			vm.stackTop[-1] = -vm.stackTop[-1];
+			if (vm.stackTop[-1].type != VAL_NUMBER)
+			{
+				runtimeError("Operand must be a number.", curr_line);
+				return INTERPRET_RUNTIME_ERROR;
+			}
+			vm.stackTop[-1].num *= -1;
 			break;
 		case OP_RETURN:
 #ifdef DEBUG_TRACE_EXECUTION

@@ -1,7 +1,24 @@
 #ifndef VALUE_H
 #define VALUE_H
 
-typedef double Value;
+#include <stddef.h>
+
+typedef enum
+{
+	VAL_NUMBER,
+	VAL_BOOL,
+	VAL_NIL
+} ValueType;
+
+typedef struct
+{
+	ValueType type;
+	union
+	{
+		double num;
+		size_t boolean;
+	};
+} Value;
 
 typedef struct
 {
