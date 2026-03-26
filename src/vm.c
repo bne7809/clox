@@ -4,6 +4,10 @@
 
 #define DEBUG_TRACE_EXECUTION
 
+#ifdef DEBUG_TRACE_EXECUTION
+#include "debug.h"
+#endif
+
 #define STACK_MAX	256
 
 typedef struct
@@ -39,6 +43,23 @@ static void runtimeError(const char *str, int line)
 {
 	fprintf(stderr, "%s\n[line %d] in script\n", str, line);
 	vm.stackTop = vm.stack;
+}
+
+static int isFalsey(Value val)
+{
+	return (val.type == VAL_NIL) || (val.type == VAL_BOOL && !val.boolean);
+}
+
+static int valuesEqual(Value a, Value b)
+{
+	if (a.type != b.type) return 0;
+	switch (a.type)
+	{
+	case VAL_NUMBER: return a.num == b.num;
+	case VAL_BOOL: return a.boolean == b.boolean;
+	case VAL_NIL: return 1;
+	default: return 0;
+	}
 }
 
 static InterpretResult run()
@@ -128,6 +149,46 @@ static InterpretResult run()
 			push((Value){ VAL_BOOL, { .boolean = 0 } });
 			break;
 		}
+		case OP_EQUAL:
+		{
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("OP_EQUAL\n");
+#endif
+			Value a = pop();
+			Value b = pop();
+			push((Value) { VAL_BOOL, {.boolean = valuesEqual(a, b)} });
+			break;
+		}
+		case OP_GREATER:
+		{
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("OP_GREATER\n");
+#endif
+			Value a = pop();
+			Value b = pop();
+			if (a.type != VAL_NUMBER || b.type != VAL_NUMBER)
+			{
+				runtimeError("Operands must be numbers.", curr_line);
+				return INTERPRET_RUNTIME_ERROR;
+			}
+			push((Value) { VAL_BOOL, {.boolean = (b.num > a.num)} });
+			break;
+		}
+		case OP_LESS:
+		{
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("OP_LESS\n");
+#endif
+			Value a = pop();
+			Value b = pop();
+			if (a.type != VAL_NUMBER || b.type != VAL_NUMBER)
+			{
+				runtimeError("Operands must be numbers.", curr_line);
+				return INTERPRET_RUNTIME_ERROR;
+			}
+			push((Value) { VAL_BOOL, {.boolean = (b.num < a.num)} });
+			break;
+		}
 		case OP_ADD:
 		{
 #ifdef DEBUG_TRACE_EXECUTION
@@ -203,6 +264,13 @@ static InterpretResult run()
 			}
 			vm.stackTop[-1].num *= -1;
 			break;
+		case OP_NOT:
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("OP_NOT\n");
+#endif
+			vm.stackTop[-1].type = VAL_BOOL;
+			vm.stackTop[-1].boolean = isFalsey(vm.stackTop[-1]);
+			break;
 		case OP_RETURN:
 #ifdef DEBUG_TRACE_EXECUTION
 			printf("OP_RETURN\n");
@@ -224,6 +292,9 @@ InterpretResult interpret(const char *source, int repl)
 		if (repl) resetParser();
 		return INTERPRET_COMPILE_ERROR;
 	}
+#ifdef DEBUG_TRACE_EXECUTION
+	disassembleChunk(&chunk, "code");
+#endif
 	vm.chunk = &chunk;
 	vm.ip = chunk.code;
 	InterpretResult result = run();

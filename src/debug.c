@@ -69,6 +69,15 @@ void disassembleChunk(Chunk *chunk, const char *name)
 		case OP_FALSE:
 			offset = simpleInstruction("OP_FALSE", offset);
 			break;
+		case OP_EQUAL:
+			offset = simpleInstruction("OP_EQUAL", offset);
+			break;
+		case OP_GREATER:
+			offset = simpleInstruction("OP_GREATER", offset);
+			break;
+		case OP_LESS:
+			offset = simpleInstruction("OP_LESS", offset);
+			break;
 		case OP_ADD:
 			offset = simpleInstruction("OP_ADD", offset);
 			break;
@@ -83,6 +92,9 @@ void disassembleChunk(Chunk *chunk, const char *name)
 			break;
 		case OP_NEGATE:
 			offset = simpleInstruction("OP_NEGATE", offset);
+			break;
+		case OP_NOT:
+			offset = simpleInstruction("OP_NOT", offset);
 			break;
 		case OP_RETURN:
 			offset = simpleInstruction("OP_RETURN", offset);
