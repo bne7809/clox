@@ -16,6 +16,7 @@ typedef struct
 	uint8_t *ip;
 	Value stack[STACK_MAX];
 	Value *stackTop;
+	Obj *objects;
 } VM;
 
 static VM vm;
@@ -23,10 +24,18 @@ static VM vm;
 void initVM()
 {
 	vm.stackTop = vm.stack;
+	vm.objects = NULL;
 }
 
 void freeVM()
 {
+	Obj *o = vm.objects;
+	while (o)
+	{
+		Obj *tmp = o->next;
+		freeObject(o);
+		o = tmp;
+	}
 }
 
 static void push(Value val)
@@ -57,6 +66,7 @@ static int valuesEqual(Value a, Value b)
 	{
 	case VAL_NUMBER: return a.num == b.num;
 	case VAL_BOOL: return a.boolean == b.boolean;
+	case VAL_OBJ: return objsEqual(a.obj, b.obj);
 	case VAL_NIL: return 1;
 	default: return 0;
 	}
@@ -196,14 +206,20 @@ static InterpretResult run()
 #endif
 			Value a = pop();
 			Value b = pop();
-			if (a.type != VAL_NUMBER || b.type != VAL_NUMBER)
+			if (a.type == VAL_NUMBER && b.type == VAL_NUMBER)
 			{
-				runtimeError("Operands must be numbers.", curr_line);
-				return INTERPRET_RUNTIME_ERROR;
+				b.num += a.num;
+				push(b);
+				break;
+			} else if (a.type == VAL_OBJ && b.type == VAL_OBJ) {
+				if (a.obj->type == OBJ_STRING && b.obj->type == OBJ_STRING)
+				{
+					push((Value) { VAL_OBJ, {.obj = (Obj *)concat((ObjString *)b.obj, (ObjString *)a.obj, &vm.objects)} });
+					break;
+				}
 			}
-			b.num += a.num;
-			push(b);
-			break;
+			runtimeError("Operands must be numbers or strings.", curr_line);
+			return INTERPRET_RUNTIME_ERROR;
 		}
 		case OP_SUBTRACT:
 		{
@@ -286,7 +302,7 @@ InterpretResult interpret(const char *source, int repl)
 {
 	Chunk chunk;
 	initChunk(&chunk);
-	if (!compile(source, &chunk))
+	if (!compile(source, &chunk, &vm.objects))
 	{
 		freeChunk(&chunk);
 		if (repl) resetParser();

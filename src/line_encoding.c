@@ -14,14 +14,14 @@ void freeLineEncoding(LineEncoding *encoding)
 	initLineEncoding(encoding);
 }
 
-static void addLineData(LineEncoding *encoding, int num, int line)
+static void addLineData(LineEncoding *encoding, int line)
 {
 	if (encoding->capacity == encoding->count)
 	{
 		encoding->capacity = GROW_CAPACITY(encoding->capacity);
 		encoding->data = GROW_ARRAY(LineData, encoding->data, encoding->capacity);
 	}
-	encoding->data[encoding->count++] = (LineData){ num, line };
+	encoding->data[encoding->count++] = (LineData){ 1, line };
 }
 
 void writeLineEncoding(LineEncoding *encoding, int line)
@@ -30,7 +30,7 @@ void writeLineEncoding(LineEncoding *encoding, int line)
 	LineData *data = encoding->data;
 	if (!data || data[count - 1].line != line)
 	{
-		addLineData(encoding, 1, line);
+		addLineData(encoding, line);
 	} else {
 		++data[count - 1].num;
 	}

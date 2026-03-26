@@ -2,11 +2,13 @@
 #define VALUE_H
 
 #include <stddef.h>
+#include "object.h"
 
 typedef enum
 {
 	VAL_NUMBER,
 	VAL_BOOL,
+	VAL_OBJ,
 	VAL_NIL
 } ValueType;
 
@@ -17,6 +19,7 @@ typedef struct
 	{
 		double num;
 		size_t boolean;
+		Obj *obj;
 	};
 } Value;
 

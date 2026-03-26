@@ -45,10 +45,13 @@ typedef struct
 	Precedence precedence;
 } ParseRule;
 
+static Obj **g_head;
+
 static void grouping();
 static void unary();
 static void binary();
 static void number();
+static void string();
 static void literal();
 
 ParseRule rules[] = {
@@ -74,7 +77,7 @@ ParseRule rules[] = {
 	[TOKEN_LESS_EQUAL]    = {NULL,     binary, PREC_COMPARISON},
 
 	[TOKEN_IDENTIFIER]    = {NULL,     NULL,   PREC_NONE},
-	[TOKEN_STRING]        = {NULL,     NULL,   PREC_NONE},
+	[TOKEN_STRING]        = {string,   NULL,   PREC_NONE},
 	[TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},
 	[TOKEN_AND]           = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_CLASS]         = {NULL,     NULL,   PREC_NONE},
@@ -201,6 +204,11 @@ static void literal()
 	}
 }
 
+static void string()
+{
+	return emitConstant((Value) { VAL_OBJ, { .obj = (Obj *)copyString(parser.prev.start + 1, parser.prev.length - 2, g_head) } });
+}
+
 static void number()
 {
 	Value v;
@@ -258,13 +266,14 @@ static void endCompiler()
 	emitByte(OP_RETURN);
 }
 
-int compile(const char *source, Chunk *chunk)
+int compile(const char *source, Chunk *chunk, Obj **head)
 {
 #ifdef DEBUG_PRINT_TOKENS
 	printTokens(source);
 #endif
 	initScanner(source);
 	compilingChunk = chunk;
+	g_head = head;
 	advance();
 	expression();
 	consume(TOKEN_EOF, "Expect end of expression.");

@@ -3,7 +3,7 @@
 
 #include "chunk.h"
 
-int compile(const char *source, Chunk *chunk);
+int compile(const char *source, Chunk *chunk, Obj **head);
 
 void resetParser();
 
