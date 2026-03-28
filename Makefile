@@ -9,7 +9,8 @@ SRCS = ./src/main.c \
 	   ./src/vm.c \
 	   ./src/compiler.c \
 	   ./src/scanner.c \
-	   ./src/object.c
+	   ./src/object.c \
+	   ./src/table.c
 
 OBJS = $(SRCS:./src/%.c=./bin/%.o)
 
@@ -19,7 +20,7 @@ $(NAME): $(OBJS)
 	cc -o $(NAME) $(OBJS)
 
 ./bin/%.o: ./src/%.c | bin
-	cc -c -Wall -Werror -Wextra -I ./include $< -o $@
+	cc -g -c -Wall -Werror -Wextra -I ./include $< -o $@
 
 bin:
 	mkdir -p bin
