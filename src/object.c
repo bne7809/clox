@@ -3,11 +3,23 @@
 #include <string.h>
 #include "object.h"
 
+static uint32_t hashString(const char *str, int length)
+{
+	uint32_t hash = 2166136261u;
+	for (int i = 0; i < length; ++i)
+	{
+		hash ^= (uint8_t)str[i];
+		hash *= 16777619;
+	}
+	return hash;
+}
+
 ObjString *copyString(const char *str, int length, Obj **head)
 {
 	ObjString *ret = malloc(sizeof(ObjString) + length + 1);
 	ret->obj.type = OBJ_STRING;
 	ret->obj.next = *head;
+	ret->hash = hashString(str, length);
 	ret->length = length;
 	memcpy(ret->str, str, length);
 	ret->str[length] = '\0';
@@ -20,6 +32,7 @@ ObjString *concat(ObjString *a, ObjString *b, Obj **head)
 	ObjString *ret = malloc(sizeof(ObjString) + a->length + b->length + 1);
 	ret->obj.type = OBJ_STRING;
 	ret->obj.next = *head;
+	ret->hash = 0;
 	ret->length = a->length + b->length;
 	memcpy(ret->str, a->str, a->length);
 	memcpy(ret->str + a->length, b->str, b->length);

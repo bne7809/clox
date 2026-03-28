@@ -1,6 +1,8 @@
 #ifndef OBJECT_H
 #define OBJECT_H
 
+#include <stdint.h>
+
 typedef enum
 {
 	OBJ_STRING
@@ -15,6 +17,7 @@ typedef struct Obj
 typedef struct
 {
 	Obj obj;
+	uint32_t hash;
 	int length;
 	char str[];
 } ObjString;
