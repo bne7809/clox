@@ -22,8 +22,8 @@ typedef struct
 	char str[];
 } ObjString;
 
-ObjString *copyString(const char *str, int length, Obj **head);
-ObjString *concat(ObjString *a, ObjString *b, Obj **head);
+ObjString *copyString(const char *str, int length);
+ObjString *concat(ObjString *a, ObjString *b);
 
 int objsEqual(Obj *a, Obj *b);
 

@@ -45,8 +45,6 @@ typedef struct
 	Precedence precedence;
 } ParseRule;
 
-static Obj **g_head;
-
 static void grouping();
 static void unary();
 static void binary();
@@ -206,7 +204,7 @@ static void literal()
 
 static void string()
 {
-	return emitConstant((Value) { VAL_OBJ, { .obj = (Obj *)copyString(parser.prev.start + 1, parser.prev.length - 2, g_head) } });
+	return emitConstant((Value) { VAL_OBJ, { .obj = (Obj *)copyString(parser.prev.start + 1, parser.prev.length - 2) } });
 }
 
 static void number()
@@ -266,14 +264,13 @@ static void endCompiler()
 	emitByte(OP_RETURN);
 }
 
-int compile(const char *source, Chunk *chunk, Obj **head)
+int compile(const char *source, Chunk *chunk)
 {
 #ifdef DEBUG_PRINT_TOKENS
 	printTokens(source);
 #endif
 	initScanner(source);
 	compilingChunk = chunk;
-	g_head = head;
 	advance();
 	expression();
 	consume(TOKEN_EOF, "Expect end of expression.");

@@ -8,27 +8,18 @@
 #include "debug.h"
 #endif
 
-#define STACK_MAX	256
-
-typedef struct
-{
-	Chunk *chunk;
-	uint8_t *ip;
-	Value stack[STACK_MAX];
-	Value *stackTop;
-	Obj *objects;
-} VM;
-
-static VM vm;
+VM vm;
 
 void initVM()
 {
 	vm.stackTop = vm.stack;
 	vm.objects = NULL;
+	initTable(&vm.strings);
 }
 
 void freeVM()
 {
+	freeTable(&vm.strings);
 	Obj *o = vm.objects;
 	while (o)
 	{
@@ -57,19 +48,6 @@ static void runtimeError(const char *str, int line)
 static int isFalsey(Value val)
 {
 	return (val.type == VAL_NIL) || (val.type == VAL_BOOL && !val.boolean);
-}
-
-static int valuesEqual(Value a, Value b)
-{
-	if (a.type != b.type) return 0;
-	switch (a.type)
-	{
-	case VAL_NUMBER: return a.num == b.num;
-	case VAL_BOOL: return a.boolean == b.boolean;
-	case VAL_OBJ: return objsEqual(a.obj, b.obj);
-	case VAL_NIL: return 1;
-	default: return 0;
-	}
 }
 
 static InterpretResult run()
@@ -214,7 +192,7 @@ static InterpretResult run()
 			} else if (a.type == VAL_OBJ && b.type == VAL_OBJ) {
 				if (a.obj->type == OBJ_STRING && b.obj->type == OBJ_STRING)
 				{
-					push((Value) { VAL_OBJ, {.obj = (Obj *)concat((ObjString *)b.obj, (ObjString *)a.obj, &vm.objects)} });
+					push((Value) { VAL_OBJ, {.obj = (Obj *)concat((ObjString *)b.obj, (ObjString *)a.obj)} });
 					break;
 				}
 			}
@@ -302,7 +280,7 @@ InterpretResult interpret(const char *source, int repl)
 {
 	Chunk chunk;
 	initChunk(&chunk);
-	if (!compile(source, &chunk, &vm.objects))
+	if (!compile(source, &chunk))
 	{
 		freeChunk(&chunk);
 		if (repl) resetParser();

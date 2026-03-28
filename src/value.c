@@ -36,3 +36,16 @@ void printValue(Value value)
 	default: return;
 	}
 }
+
+int valuesEqual(Value a, Value b)
+{
+	if (a.type != b.type) return 0;
+	switch (a.type)
+	{
+	case VAL_NUMBER: return a.num == b.num;
+	case VAL_BOOL: return a.boolean == b.boolean;
+	case VAL_OBJ: return objsEqual(a.obj, b.obj);
+	case VAL_NIL: return 1;
+	default: return 0;
+	}
+}
