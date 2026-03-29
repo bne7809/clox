@@ -14,11 +14,13 @@ void initVM()
 {
 	vm.stackTop = vm.stack;
 	vm.objects = NULL;
+	initTable(&vm.globals);
 	initTable(&vm.strings);
 }
 
 void freeVM()
 {
+	freeTable(&vm.globals);
 	freeTable(&vm.strings);
 	Obj *o = vm.objects;
 	while (o)
@@ -41,7 +43,8 @@ static Value pop()
 
 static void runtimeError(const char *str, int line)
 {
-	fprintf(stderr, "%s\n[line %d] in script\n", str, line);
+	if (str) fprintf(stderr, "%s\n[line %d] in script\n", str, line);
+	else fprintf(stderr, "\n[line %d] in script\n", line);
 	vm.stackTop = vm.stack;
 }
 
@@ -111,6 +114,111 @@ static InterpretResult run()
 			printf("'\n");
 #endif
 			push(val);
+			break;
+		}
+		case OP_DEFINE_GLOBAL:
+		{
+			int const_index = *vm.ip++;
+			ObjString *name = (ObjString *)vm.chunk->constants.values[const_index].obj;
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("%-16s %4d '", "OP_DEFINE_GLOBAL", const_index);
+			printObject((Obj *)name);
+			printf("'\n");
+#endif
+			tableSet(&vm.globals, name, pop());
+			break;
+		}
+		case OP_DEFINE_GLOBAL_LONG:
+		{
+			uint8_t c1 = *vm.ip++;
+			uint8_t c2 = *vm.ip++;
+			uint8_t c3 = *vm.ip++;
+			int const_index = (c3 << 16) | (c2 << 8) | c1;
+			ObjString *name = (ObjString *)vm.chunk->constants.values[const_index].obj;
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("%-16s %4d '", "OP_DEFINE_GLOBAL_LONG", const_index);
+			printObject((Obj *)name);
+			printf("'\n");
+#endif
+			tableSet(&vm.globals, name, pop());
+			break;
+		}
+		case OP_GET_GLOBAL:
+		{
+			int const_index = *vm.ip++;
+			ObjString *name = (ObjString *)vm.chunk->constants.values[const_index].obj;
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("%-16s %4d '", "OP_GET_GLOBAL", const_index);
+			printObject((Obj *)name);
+			printf("'\n");
+#endif
+			Value val;
+			if (!tableGet(&vm.globals, name, &val))
+			{
+				fprintf(stderr, "Undefined variable '%s'.", name->str);
+				runtimeError(NULL, curr_line);
+				return INTERPRET_RUNTIME_ERROR;
+			}
+			push(val);
+			break;
+		}
+		case OP_GET_GLOBAL_LONG:
+		{
+			uint8_t c1 = *vm.ip++;
+			uint8_t c2 = *vm.ip++;
+			uint8_t c3 = *vm.ip++;
+			int const_index = (c3 << 16) | (c2 << 8) | c1;
+			ObjString *name = (ObjString *)vm.chunk->constants.values[const_index].obj;
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("%-16s %4d '", "OP_GET_GLOBAL_LONG", const_index);
+			printObject((Obj *)name);
+			printf("'\n");
+#endif
+			Value val;
+			if (!tableGet(&vm.globals, name, &val))
+			{
+				fprintf(stderr, "Undefined variable '%s'.", name->str);
+				runtimeError(NULL, curr_line);
+				return INTERPRET_RUNTIME_ERROR;
+			}
+			push(val);
+			break;
+		}
+		case OP_SET_GLOBAL:
+		{
+			int const_index = *vm.ip++;
+			ObjString *name = (ObjString *)vm.chunk->constants.values[const_index].obj;
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("%-16s %4d '", "OP_SET_GLOBAL", const_index);
+			printObject((Obj *)name);
+			printf("'\n");
+#endif
+			if (tableSet(&vm.globals, name, vm.stackTop[-1]))
+			{
+				fprintf(stderr, "Undefined variable '%s'.", name->str);
+				runtimeError(NULL, curr_line);
+				return INTERPRET_RUNTIME_ERROR;
+			}
+			break;
+		}
+		case OP_SET_GLOBAL_LONG:
+		{
+			uint8_t c1 = *vm.ip++;
+			uint8_t c2 = *vm.ip++;
+			uint8_t c3 = *vm.ip++;
+			int const_index = (c3 << 16) | (c2 << 8) | c1;
+			ObjString *name = (ObjString *)vm.chunk->constants.values[const_index].obj;
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("%-16s %4d '", "OP_SET_GLOBAL_LONG", const_index);
+			printObject((Obj *)name);
+			printf("'\n");
+#endif
+			if (tableSet(&vm.globals, name, vm.stackTop[-1]))
+			{
+				fprintf(stderr, "Undefined variable '%s'.", name->str);
+				runtimeError(NULL, curr_line);
+				return INTERPRET_RUNTIME_ERROR;
+			}
 			break;
 		}
 		case OP_NIL:
@@ -265,12 +373,23 @@ static InterpretResult run()
 			vm.stackTop[-1].type = VAL_BOOL;
 			vm.stackTop[-1].boolean = isFalsey(vm.stackTop[-1]);
 			break;
+		case OP_PRINT:
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("OP_PRINT\n");
+#endif
+			printValue(pop());
+			printf("\n");
+			break;
+		case OP_POP:
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("OP_POP\n");
+#endif
+			pop();
+			break;
 		case OP_RETURN:
 #ifdef DEBUG_TRACE_EXECUTION
 			printf("OP_RETURN\n");
 #endif
-			printValue(pop());
-			printf("\n");
 			return INTERPRET_OK;
 		}
 	}

@@ -29,10 +29,29 @@ void freeChunk(Chunk *chunk)
 	initChunk(chunk);
 }
 
-void writeConstant(Chunk *chunk, Value value, int line)
+void writeGlobal(Chunk *chunk, OpCode type, int global, int line)
+{
+	if (global > 255)
+	{
+		writeChunk(chunk, type + 1, line);
+		writeChunk(chunk, global & 255, line);
+		writeChunk(chunk, (global >> 8) & 255, line);
+		writeChunk(chunk, (global >> 16) & 255, line);
+	} else {
+		writeChunk(chunk, type, line);
+		writeChunk(chunk, global, line);
+	}
+}
+
+int makeConstant(Chunk *chunk, Value value)
 {
 	writeValueArray(&chunk->constants, value);
-	int const_index = chunk->constants.count - 1;
+	return chunk->constants.count - 1;
+}
+
+void writeConstant(Chunk *chunk, Value value, int line)
+{
+	int const_index = makeConstant(chunk, value);
 	if (const_index > 255)
 	{
 		writeChunk(chunk, OP_CONSTANT_LONG, line);

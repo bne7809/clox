@@ -60,6 +60,24 @@ void disassembleChunk(Chunk *chunk, const char *name)
 		case OP_CONSTANT:
 			offset = constantInstruction("OP_CONSTANT", chunk, offset);
 			break;
+		case OP_DEFINE_GLOBAL_LONG:
+			offset = constantLongInstruction("OP_DEFINE_GLOBAL_LONG", chunk, offset);
+			break;
+		case OP_DEFINE_GLOBAL:
+			offset = constantInstruction("OP_DEFINE_GLOBAL", chunk, offset);
+			break;
+		case OP_GET_GLOBAL_LONG:
+			offset = constantLongInstruction("OP_GET_GLOBAL_LONG", chunk, offset);
+			break;
+		case OP_GET_GLOBAL:
+			offset = constantInstruction("OP_GET_GLOBAL", chunk, offset);
+			break;
+		case OP_SET_GLOBAL_LONG:
+			offset = constantLongInstruction("OP_SET_GLOBAL_LONG", chunk, offset);
+			break;
+		case OP_SET_GLOBAL:
+			offset = constantInstruction("OP_SET_GLOBAL", chunk, offset);
+			break;
 		case OP_NIL:
 			offset = simpleInstruction("OP_NIL", offset);
 			break;
@@ -95,6 +113,12 @@ void disassembleChunk(Chunk *chunk, const char *name)
 			break;
 		case OP_NOT:
 			offset = simpleInstruction("OP_NOT", offset);
+			break;
+		case OP_PRINT:
+			offset = simpleInstruction("OP_PRINT", offset);
+			break;
+		case OP_POP:
+			offset = simpleInstruction("OP_POP", offset);
 			break;
 		case OP_RETURN:
 			offset = simpleInstruction("OP_RETURN", offset);
