@@ -29,6 +29,13 @@ static int constantLongInstruction(const char *name, Chunk *chunk, int offset)
 	return offset + 4;
 }
 
+static int variableInstruction(const char *name, Chunk *chunk, int offset)
+{
+	uint8_t const_index = chunk->code[offset + 1];
+	printf("%-16s %4d\n", name, const_index);
+	return offset + 2;
+}
+
 void disassembleChunk(Chunk *chunk, const char *name)
 {
 	printf("== BEGIN %s ==\n\n", name);
@@ -59,6 +66,12 @@ void disassembleChunk(Chunk *chunk, const char *name)
 			break;
 		case OP_CONSTANT:
 			offset = constantInstruction("OP_CONSTANT", chunk, offset);
+			break;
+		case OP_GET_LOCAL:
+			offset = variableInstruction("OP_GET_LOCAL", chunk, offset);
+			break;
+		case OP_SET_LOCAL:
+			offset = variableInstruction("OP_SET_LOCAL", chunk, offset);
 			break;
 		case OP_DEFINE_GLOBAL_LONG:
 			offset = constantLongInstruction("OP_DEFINE_GLOBAL_LONG", chunk, offset);

@@ -116,6 +116,24 @@ static InterpretResult run()
 			push(val);
 			break;
 		}
+		case OP_GET_LOCAL:
+		{
+			int const_index = *vm.ip++;
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("%-16s %4d\n", "OP_GET_LOCAL", const_index);
+#endif
+			push(vm.stack[const_index]);
+			break;
+		}
+		case OP_SET_LOCAL:
+		{
+			int const_index = *vm.ip++;
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("%-16s %4d\n", "OP_SET_LOCAL", const_index);
+#endif
+			vm.stack[const_index] = vm.stackTop[-1];
+			break;
+		}
 		case OP_DEFINE_GLOBAL:
 		{
 			int const_index = *vm.ip++;

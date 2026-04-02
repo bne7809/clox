@@ -15,6 +15,8 @@ typedef enum
 	OP_GET_GLOBAL_LONG,
 	OP_SET_GLOBAL,
 	OP_SET_GLOBAL_LONG,
+	OP_GET_LOCAL,
+	OP_SET_LOCAL,
 	OP_NIL,
 	OP_TRUE,
 	OP_FALSE,
@@ -44,7 +46,7 @@ typedef struct
 void initChunk(Chunk *chunk);
 void freeChunk(Chunk *chunk);
 void writeChunk(Chunk *chunk, uint8_t byte, int line);
-void writeGlobal(Chunk *chunk, OpCode type, int global, int line);
+void writeVariable(Chunk *chunk, OpCode type, int loc, int line);
 void writeConstant(Chunk *chunk, Value value, int line);
 
 int makeConstant(Chunk *chunk, Value value);

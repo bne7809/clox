@@ -1,11 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include "chunk.h"
 #include "scanner.h"
 
 #ifdef DEBUG_PRINT_TOKENS
 #include "debug.h"
 #endif
+
+#define UINT8_COUNT	(UINT8_MAX + 1)
 
 #define SET_ERROR	parser.flags |= 1
 #define IS_ERROR	(parser.flags & 1)
@@ -45,6 +48,19 @@ typedef struct
 	ParseFn infix;
 	Precedence precedence;
 } ParseRule;
+
+typedef struct
+{
+	Token name;
+	int depth;
+} Local;
+
+typedef struct
+{
+	Local locals[UINT8_COUNT];
+	int localCount;
+	int scopeDepth;
+} Compiler;
 
 static void grouping(int);
 static void unary(int);
@@ -101,7 +117,15 @@ ParseRule rules[] = {
 };
 
 static Parser parser;
+Compiler *current;
 static Chunk *compilingChunk;
+
+static void initCompiler(Compiler *compiler)
+{
+	compiler->localCount = 0;
+	compiler->scopeDepth = 0;
+	current = compiler;
+};
 
 void resetParser()
 {
@@ -244,15 +268,50 @@ static void expression()
 	parsePrecedence(PREC_ASSIGNMENT);
 }
 
+
+static int identifiersEqual(Token *t1, Token *t2)
+{
+	if (t1->length != t2->length) return 0;
+	return !memcmp(t1->start, t2->start, t1->length);
+}
+
+static int resolveLocal(Compiler *compiler, Token *name)
+{
+	for (int i = compiler->localCount - 1; i >= 0; --i)
+	{
+		Local *l = &compiler->locals[i];
+		if (identifiersEqual(name, &l->name))
+		{
+			if (l->depth == -1)
+			{
+				error("Can't read local variable in its own initializer.");
+			}
+			return i;
+		}
+	}
+	return -1;
+}
+
 static void variable(int canAssign)
 {
-	int global = identifierConstant(&parser.prev);
+	OpCode getOp;
+	OpCode setOp;
+	int arg = resolveLocal(current, &parser.prev);
+	if (arg != -1)
+	{
+		getOp = OP_GET_LOCAL;
+		setOp = OP_SET_LOCAL;
+	} else {
+		arg = identifierConstant(&parser.prev);
+		getOp = OP_GET_GLOBAL;
+		setOp = OP_SET_GLOBAL;
+	}
 	if (canAssign && match(TOKEN_EQUAL))
 	{
 		expression();
-		writeGlobal(currentChunk(), OP_SET_GLOBAL, global, parser.prev.line);
+		writeVariable(currentChunk(), setOp, arg, parser.prev.line);
 	} else {
-		writeGlobal(currentChunk(), OP_GET_GLOBAL, global, parser.prev.line);
+		writeVariable(currentChunk(), getOp, arg, parser.prev.line);
 	}
 }
 
@@ -325,6 +384,8 @@ static void grouping(int canAssign)
 	consume(TOKEN_RIGHT_PAREN, "Expect ')' after expression.");
 }
 
+static void declaration();
+
 static void printStatement()
 {
 	expression();
@@ -339,15 +400,74 @@ static void expressionStatement()
 	emitByte(OP_POP);
 }
 
+static void block()
+{
+	while (!check(TOKEN_RIGHT_BRACE) && !check(TOKEN_EOF))
+	{
+		declaration();
+	}
+	consume(TOKEN_RIGHT_BRACE, "Expect '}' after block.");
+}
+
+static void beginScope()
+{
+	++current->scopeDepth;
+}
+
+static void endScope()
+{
+	--current->scopeDepth;
+	while (current->localCount > 0 && current->locals[current->localCount - 1].depth > current->scopeDepth)
+	{
+		emitByte(OP_POP);
+		--current->localCount;
+	}
+}
+
 static void statement()
 {
-	if (match(TOKEN_PRINT)) printStatement();
-	else expressionStatement();
+	if (match(TOKEN_PRINT))
+	{
+		printStatement();
+	} else if (match(TOKEN_LEFT_BRACE)) {
+		beginScope();
+		block();
+		endScope();
+	} else {
+		expressionStatement();
+	}
+}
+
+static void addLocal(Token *name)
+{
+	if (current->localCount == UINT8_COUNT)
+	{
+		error("Too many local variables in function.");
+		return;
+	}
+	for (int i = current->localCount - 1; i >= 0; --i)
+	{
+		Local *l = &current->locals[i];
+		if (l->depth != -1 && l->depth < current->scopeDepth)
+			break;
+		if (identifiersEqual(name, &l->name))
+		{
+			error("Already a variable with this name in this scope.");
+		}
+	}
+	Local *local = &current->locals[current->localCount++];
+	local->name = *name;
+	local->depth = -1;
 }
 
 static int parseVariable(const char *str)
 {
 	consume(TOKEN_IDENTIFIER, str);
+	if (current->scopeDepth > 0)
+	{
+		addLocal(&parser.prev);
+		return 0;
+	}
 	return identifierConstant(&parser.prev);
 }
 
@@ -358,7 +478,12 @@ static void varDeclaration()
 	if (match(TOKEN_EQUAL)) expression();
 	else emitByte(OP_NIL);
 	consume(TOKEN_SEMICOLON, "Expect ';' after value.");
-	writeGlobal(currentChunk(), OP_DEFINE_GLOBAL, global, line);
+	if (current->scopeDepth > 0)
+	{
+		current->locals[current->localCount - 1].depth = current->scopeDepth;
+		return;
+	}
+	writeVariable(currentChunk(), OP_DEFINE_GLOBAL, global, line);
 }
 
 static void declaration()
@@ -379,6 +504,8 @@ int compile(const char *source, Chunk *chunk)
 	printTokens(source);
 #endif
 	initScanner(source);
+	Compiler compiler;
+	initCompiler(&compiler);
 	compilingChunk = chunk;
 	advance();
 	while (!match(TOKEN_EOF)) declaration();

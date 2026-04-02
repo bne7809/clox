@@ -1,0 +1,5 @@
+var a = "sdfsd";
+{
+	var a = "aasdf";
+	print a;
+}
