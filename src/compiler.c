@@ -65,6 +65,8 @@ typedef struct
 static void grouping(int);
 static void unary(int);
 static void binary(int);
+static void and_(int);
+static void or_(int);
 static void number(int);
 static void string(int);
 static void variable(int);
@@ -95,7 +97,7 @@ ParseRule rules[] = {
 	[TOKEN_IDENTIFIER]    = {variable, NULL,   PREC_NONE},
 	[TOKEN_STRING]        = {string,   NULL,   PREC_NONE},
 	[TOKEN_NUMBER]        = {number,   NULL,   PREC_NONE},
-	[TOKEN_AND]           = {NULL,     NULL,   PREC_NONE},
+	[TOKEN_AND]           = {NULL,     and_,   PREC_AND},
 	[TOKEN_CLASS]         = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_ELSE]          = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_FALSE]         = {literal,  NULL,   PREC_NONE},
@@ -104,7 +106,7 @@ ParseRule rules[] = {
 	[TOKEN_IF]            = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_NIL]           = {literal,  NULL,   PREC_NONE},
 
-	[TOKEN_OR]            = {NULL,     NULL,   PREC_NONE},
+	[TOKEN_OR]            = {NULL,     or_,    PREC_OR},
 	[TOKEN_PRINT]         = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_RETURN]        = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_SUPER]         = {NULL,     NULL,   PREC_NONE},
@@ -442,6 +444,26 @@ static void patchJump(int offset)
 	if (jump > UINT16_MAX) error("Too much code to jump over.");
 	code[offset] = (jump >> 8) & 0xff;
 	code[offset + 1] = jump & 0xff;
+}
+
+static void and_(int canAssign)
+{
+	(void)canAssign;
+	int jump = emitJump(OP_JUMP_IF_FALSE);
+	emitByte(OP_POP);
+	parsePrecedence(PREC_AND);
+	patchJump(jump);
+}
+
+static void or_(int canAssign)
+{
+	(void)canAssign;
+	int jump = emitJump(OP_JUMP_IF_FALSE);
+	int end = emitJump(OP_JUMP);
+	patchJump(jump);
+	emitByte(OP_POP);
+	parsePrecedence(PREC_OR);
+	patchJump(end);
 }
 
 static void ifStatement()
