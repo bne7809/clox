@@ -385,6 +385,7 @@ static void grouping(int canAssign)
 }
 
 static void declaration();
+static void statement();
 
 static void printStatement()
 {
@@ -424,11 +425,49 @@ static void endScope()
 	}
 }
 
+static int emitJump(uint8_t inst)
+{
+	emitByte(inst);
+	emitByte(0xff);
+	emitByte(0xff);
+	return currentChunk()->count - 2;
+}
+
+static void patchJump(int offset)
+{
+	size_t count = currentChunk()->count;
+	uint8_t *code = currentChunk()->code;
+
+	int jump = count - offset - 2;
+	if (jump > UINT16_MAX) error("Too much code to jump over.");
+	code[offset] = (jump >> 8) & 0xff;
+	code[offset + 1] = jump & 0xff;
+}
+
+static void ifStatement()
+{
+	int elseJump;
+
+	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
+	expression();
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
+	int thenJump = emitJump(OP_JUMP_IF_FALSE);
+	emitByte(OP_POP);
+	statement();
+	elseJump = emitJump(OP_JUMP);
+	patchJump(thenJump);
+	emitByte(OP_POP);
+	if (match(TOKEN_ELSE)) statement();
+	patchJump(elseJump);
+}
+
 static void statement()
 {
 	if (match(TOKEN_PRINT))
 	{
 		printStatement();
+	} else if (match(TOKEN_IF)) {
+		ifStatement();
 	} else if (match(TOKEN_LEFT_BRACE)) {
 		beginScope();
 		block();

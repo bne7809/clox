@@ -239,6 +239,28 @@ static InterpretResult run()
 			}
 			break;
 		}
+		case OP_JUMP_IF_FALSE:
+		{
+			uint8_t c1 = *vm.ip++;
+			uint8_t c2 = *vm.ip++;
+			int jump = (c1 << 8) | c2;
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("%-16s %4d -> %d\n", "OP_JUMP_IF_FALSE", offset, offset + 3 + jump);
+#endif
+			if (isFalsey(vm.stackTop[-1])) vm.ip += jump;
+			break;
+		}
+		case OP_JUMP:
+		{
+			uint8_t c1 = *vm.ip++;
+			uint8_t c2 = *vm.ip++;
+			int jump = (c1 << 8) | c2;
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("%-16s %4d -> %d\n", "OP_JUMP", offset, offset + 3 + jump);
+#endif
+			vm.ip += jump;
+			break;
+		}
 		case OP_NIL:
 		{
 #ifdef DEBUG_TRACE_EXECUTION

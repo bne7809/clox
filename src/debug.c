@@ -36,6 +36,15 @@ static int variableInstruction(const char *name, Chunk *chunk, int offset)
 	return offset + 2;
 }
 
+static int jumpInstruction(const char *name, int sign, Chunk *chunk, int offset)
+{
+	uint8_t c1 = chunk->code[offset + 1];
+	uint8_t c2 = chunk->code[offset + 2];
+	int jump = (c1 << 8) | c2;
+	printf("%-16s %4d -> %d\n", name, offset, offset + 3 + sign * jump);
+	return offset + 3;
+}
+
 void disassembleChunk(Chunk *chunk, const char *name)
 {
 	printf("== BEGIN %s ==\n\n", name);
@@ -90,6 +99,12 @@ void disassembleChunk(Chunk *chunk, const char *name)
 			break;
 		case OP_SET_GLOBAL:
 			offset = constantInstruction("OP_SET_GLOBAL", chunk, offset);
+			break;
+		case OP_JUMP_IF_FALSE:
+			offset = jumpInstruction("OP_JUMP_IF_FALSE", 1, chunk, offset);
+			break;
+		case OP_JUMP:
+			offset = jumpInstruction("OP_JUMP", 1, chunk, offset);
 			break;
 		case OP_NIL:
 			offset = simpleInstruction("OP_NIL", offset);
