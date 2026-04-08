@@ -3,6 +3,7 @@
 #include <string.h>
 #include "chunk.h"
 #include "scanner.h"
+#include "int_array.h"
 
 #ifdef DEBUG_PRINT_TOKENS
 #include "debug.h"
@@ -108,6 +109,9 @@ ParseRule rules[] = {
 	[TOKEN_FOR]           = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_FUN]           = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_IF]            = {NULL,     NULL,   PREC_NONE},
+	[TOKEN_SWITCH]        = {NULL,     NULL,   PREC_NONE},
+	[TOKEN_CASE]          = {NULL,     NULL,   PREC_NONE},
+	[TOKEN_DEFAULT]       = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_NIL]           = {literal,  NULL,   PREC_NONE},
 
 	[TOKEN_OR]            = {NULL,     or_,    PREC_OR},
@@ -613,6 +617,49 @@ static void forStatement()
 	endScope();
 }
 
+static void switchStatement()
+{
+	IntArray jumps;
+	initIntArray(&jumps);
+	int numdefs = 0;
+	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'switch'.");
+	expression();
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' after switch expression.");
+	consume(TOKEN_LEFT_BRACE, "Expect '{'.");
+	while (1)
+	{
+		if (match(TOKEN_CASE))
+		{
+			if (numdefs > 0) error("Default case should be last.");
+			emitByte(OP_PUSH);
+			expression();
+			emitByte(OP_EQUAL);
+			int jCase = emitJump(OP_JUMP_IF_FALSE);
+			emitByte(OP_POP);
+			consume(TOKEN_COLON, "Expect ':' after 'case'.");
+			while (!check(TOKEN_EOF) && !check(TOKEN_RIGHT_BRACE) && !check(TOKEN_CASE) && !check(TOKEN_DEFAULT)) statement();
+			addIntArray(&jumps, emitJump(OP_JUMP));
+			patchJump(jCase);
+			emitByte(OP_POP);
+		} else if (match(TOKEN_DEFAULT)) {
+			if (numdefs > 0) error("More than one default case.");
+			++numdefs;
+			consume(TOKEN_COLON, "Expect ':' after 'default'.");
+			while (!check(TOKEN_EOF) && !check(TOKEN_RIGHT_BRACE)) statement();
+			addIntArray(&jumps, emitJump(OP_JUMP));
+		} else {
+			break;
+		}
+	}
+	consume(TOKEN_RIGHT_BRACE, "Expect '}'.");
+	for (int i = 0; i < jumps.count; ++i)
+	{
+		patchJump(jumps.values[i]);
+	}
+	freeIntArray(&jumps);
+	emitByte(OP_POP);
+}
+
 static void statement()
 {
 	if (match(TOKEN_PRINT))
@@ -620,6 +667,8 @@ static void statement()
 		printStatement();
 	} else if (match(TOKEN_IF)) {
 		ifStatement();
+	} else if (match(TOKEN_SWITCH)) {
+		switchStatement();
 	} else if (match(TOKEN_WHILE)) {
 		whileStatement();
 	} else if (match(TOKEN_FOR)) {

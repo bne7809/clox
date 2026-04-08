@@ -148,6 +148,9 @@ void disassembleChunk(Chunk *chunk, const char *name)
 		case OP_PRINT:
 			offset = simpleInstruction("OP_PRINT", offset);
 			break;
+		case OP_PUSH:
+			offset = simpleInstruction("OP_PUSH", offset);
+			break;
 		case OP_POP:
 			offset = simpleInstruction("OP_POP", offset);
 			break;

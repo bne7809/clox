@@ -10,7 +10,8 @@ SRCS = ./src/main.c \
 	   ./src/compiler.c \
 	   ./src/scanner.c \
 	   ./src/object.c \
-	   ./src/table.c
+	   ./src/table.c \
+	   ./src/int_array.c
 
 OBJS = $(SRCS:./src/%.c=./bin/%.o)
 

@@ -1,4 +1,16 @@
-var a = 2;
-var b = 3;
-var c = a > b ? a : b;
-print c;
+var a = "asdf";
+switch (a)
+{
+	case "sss":
+		print "h";
+	case "asdf":
+		print "a";
+		print "a";
+		print "a";
+		print "a";
+	default:
+		print "b";
+		print "b";
+		print "b";
+		print "b";
+}

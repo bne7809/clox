@@ -444,6 +444,12 @@ static InterpretResult run()
 			printValue(pop());
 			printf("\n");
 			break;
+		case OP_PUSH:
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("OP_PUSH\n");
+#endif
+			push(vm.stackTop[-1]);
+			break;
 		case OP_POP:
 #ifdef DEBUG_TRACE_EXECUTION
 			printf("OP_POP\n");
