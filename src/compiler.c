@@ -26,8 +26,9 @@ typedef struct
 typedef enum {
 	PREC_NONE,
 	PREC_ASSIGNMENT,
-	PREC_OR,
+	PREC_TERNARY,
 
+	PREC_OR,
 	PREC_AND,
 	PREC_EQUALITY,
 	PREC_COMPARISON,
@@ -67,6 +68,7 @@ static void unary(int);
 static void binary(int);
 static void and_(int);
 static void or_(int);
+static void trnary(int);
 static void number(int);
 static void string(int);
 static void variable(int);
@@ -79,6 +81,8 @@ ParseRule rules[] = {
 	[TOKEN_RIGHT_BRACE]   = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_COMMA]         = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_DOT]           = {NULL,     NULL,   PREC_NONE},
+	[TOKEN_QUESTION]      = {NULL,     trnary, PREC_TERNARY},
+	[TOKEN_COLON]         = {NULL,     NULL,   PREC_NONE},
 	[TOKEN_MINUS]         = {unary,    binary, PREC_TERM},
 	[TOKEN_PLUS]          = {NULL,     binary, PREC_TERM},
 
@@ -344,6 +348,39 @@ static void number(int canAssign)
 	emitConstant(v);
 }
 
+static int emitJump(uint8_t inst)
+{
+	emitByte(inst);
+	emitByte(0xff);
+	emitByte(0xff);
+	return currentChunk()->count - 2;
+}
+
+static void patchJump(int offset)
+{
+	size_t count = currentChunk()->count;
+	uint8_t *code = currentChunk()->code;
+
+	int jump = count - offset - 2;
+	if (jump > UINT16_MAX) error("Too much code to jump over.");
+	code[offset] = (jump >> 8) & 0xff;
+	code[offset + 1] = jump & 0xff;
+}
+
+static void trnary(int canAssign)
+{
+	(void)canAssign;
+	int j1 = emitJump(OP_JUMP_IF_FALSE);
+	emitByte(OP_POP);
+	parsePrecedence(PREC_TERNARY);
+	int j2 = emitJump(OP_JUMP);
+	patchJump(j1);
+	emitByte(OP_POP);
+	consume(TOKEN_COLON, "Expect ':' in ternary.");
+	parsePrecedence(PREC_TERNARY);
+	patchJump(j2);
+}
+
 static void binary(int canAssign)
 {
 	(void)canAssign;
@@ -425,25 +462,6 @@ static void endScope()
 		emitByte(OP_POP);
 		--current->localCount;
 	}
-}
-
-static int emitJump(uint8_t inst)
-{
-	emitByte(inst);
-	emitByte(0xff);
-	emitByte(0xff);
-	return currentChunk()->count - 2;
-}
-
-static void patchJump(int offset)
-{
-	size_t count = currentChunk()->count;
-	uint8_t *code = currentChunk()->code;
-
-	int jump = count - offset - 2;
-	if (jump > UINT16_MAX) error("Too much code to jump over.");
-	code[offset] = (jump >> 8) & 0xff;
-	code[offset + 1] = jump & 0xff;
 }
 
 static void and_(int canAssign)
