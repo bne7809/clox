@@ -59,8 +59,16 @@ typedef struct
 
 typedef struct
 {
+	int loop;
+	int depth;
+} Loop;
+
+typedef struct
+{
 	Local locals[UINT8_COUNT];
 	int localCount;
+	Loop loops[32];
+	int loopCount;
 	int scopeDepth;
 } Compiler;
 
@@ -133,6 +141,7 @@ static Chunk *compilingChunk;
 static void initCompiler(Compiler *compiler)
 {
 	compiler->localCount = 0;
+	compiler->loopCount = 0;
 	compiler->scopeDepth = 0;
 	current = compiler;
 };
@@ -517,6 +526,9 @@ static void emitLoop(int start)
 static void whileStatement()
 {
 	int loop = currentChunk()->count;
+	Loop *l = &current->loops[current->loopCount++];
+	l->loop = loop;
+	l->depth = current->scopeDepth;
 	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'if'.");
 	expression();
 	consume(TOKEN_RIGHT_PAREN, "Expect ')' after condition.");
@@ -526,6 +538,7 @@ static void whileStatement()
 	emitLoop(loop);
 	patchJump(end);
 	emitByte(OP_POP);
+	--current->loopCount;
 }
 
 static void addLocal(Token *name)
@@ -587,7 +600,9 @@ static void forStatement()
 	} else {
 		expressionStatement();
 	}
-	int loop = currentChunk()->count;
+	Loop *l = &current->loops[current->loopCount++];
+	l->loop = currentChunk()->count;
+	l->depth = current->scopeDepth;
 	int exit = -1;
 	if (!match(TOKEN_SEMICOLON))
 	{
@@ -603,17 +618,18 @@ static void forStatement()
 		expression();
 		emitByte(OP_POP);
 		consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
-		emitLoop(loop);
-		loop = incStart;
+		emitLoop(l->loop);
+		l->loop = incStart;
 		patchJump(bodyJump);
 	}
 	statement();
-	emitLoop(loop);
+	emitLoop(l->loop);
 	if (exit != -1)
 	{
 		patchJump(exit);
 		emitByte(OP_POP);
 	}
+	--current->loopCount;
 	endScope();
 }
 
@@ -660,6 +676,29 @@ static void switchStatement()
 	emitByte(OP_POP);
 }
 
+static void continueStatement()
+{
+	if (current->loopCount == 0)
+	{
+		error("Continue not in loop.");
+		return;
+	}
+	Loop *l = &current->loops[current->loopCount - 1];
+	int scopeDepth = current->scopeDepth;
+	int localCount = current->localCount;
+	while (scopeDepth > l->depth)
+	{
+		--scopeDepth;
+		while (localCount > 0 && current->locals[localCount - 1].depth > scopeDepth)
+		{
+			emitByte(OP_POP);
+			--localCount;
+		}
+	}
+	consume(TOKEN_SEMICOLON, "Expect ';' after continue.");
+	emitLoop(l->loop);
+}
+
 static void statement()
 {
 	if (match(TOKEN_PRINT))
@@ -673,7 +712,9 @@ static void statement()
 		whileStatement();
 	} else if (match(TOKEN_FOR)) {
 		forStatement();
-	} else if (match(TOKEN_LEFT_BRACE)) {
+	} else if (match(TOKEN_CONTINUE)) {
+		continueStatement();
+	}else if (match(TOKEN_LEFT_BRACE)) {
 		beginScope();
 		block();
 		endScope();
