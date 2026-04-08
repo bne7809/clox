@@ -59,6 +59,7 @@ static InterpretResult run()
 	int curr_line = 0;
 	int total = 0;
 	int lineDataIndex = 0;
+	int trace_back = 0;
 #endif
 	while (1)
 	{
@@ -73,11 +74,22 @@ static InterpretResult run()
 		printf("\n");
 		int offset = vm.ip - vm.chunk->code;
 		printf("%04d ", offset);
-		while (total <= offset)
+		int line;
+		if (!trace_back)
 		{
-			total += vm.chunk->lineData.data[lineDataIndex++].num;
+			while (total <= offset)
+			{
+				total += vm.chunk->lineData.data[lineDataIndex++].num;
+			}
+			line = vm.chunk->lineData.data[lineDataIndex - 1].line;
+		} else {
+			trace_back = 0;
+			while (total > offset)
+			{
+				total -= vm.chunk->lineData.data[--lineDataIndex].num;
+			}
+			line = vm.chunk->lineData.data[lineDataIndex].line;
 		}
-		int line = vm.chunk->lineData.data[lineDataIndex - 1].line;
 		if (offset > 0 && line == curr_line)
 		{
 			printf("   | ");
@@ -259,6 +271,18 @@ static InterpretResult run()
 			printf("%-16s %4d -> %d\n", "OP_JUMP", offset, offset + 3 + jump);
 #endif
 			vm.ip += jump;
+			break;
+		}
+		case OP_LOOP:
+		{
+			uint8_t c1 = *vm.ip++;
+			uint8_t c2 = *vm.ip++;
+			int jump = (c1 << 8) | c2;
+#ifdef DEBUG_TRACE_EXECUTION
+			printf("%-16s %4d -> %d\n", "OP_LOOP", offset, offset + 3 - jump);
+			trace_back = 1;
+#endif
+			vm.ip -= jump;
 			break;
 		}
 		case OP_NIL:

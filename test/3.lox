@@ -1,4 +1,8 @@
-var a = false;
-var b = true;
-if (a or b) print "sdfsf";
-print "asdf";
+{
+var a = 0;
+while (a <= 2)
+{
+	print a;
+	a = a + 1;
+}
+}

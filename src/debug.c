@@ -106,6 +106,9 @@ void disassembleChunk(Chunk *chunk, const char *name)
 		case OP_JUMP:
 			offset = jumpInstruction("OP_JUMP", 1, chunk, offset);
 			break;
+		case OP_LOOP:
+			offset = jumpInstruction("OP_LOOP", -1, chunk, offset);
+			break;
 		case OP_NIL:
 			offset = simpleInstruction("OP_NIL", offset);
 			break;
