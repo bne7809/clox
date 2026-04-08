@@ -506,24 +506,6 @@ static void whileStatement()
 	emitByte(OP_POP);
 }
 
-static void statement()
-{
-	if (match(TOKEN_PRINT))
-	{
-		printStatement();
-	} else if (match(TOKEN_IF)) {
-		ifStatement();
-	} else if (match(TOKEN_WHILE)) {
-		whileStatement();
-	} else if (match(TOKEN_LEFT_BRACE)) {
-		beginScope();
-		block();
-		endScope();
-	} else {
-		expressionStatement();
-	}
-}
-
 static void addLocal(Token *name)
 {
 	if (current->localCount == UINT8_COUNT)
@@ -570,6 +552,67 @@ static void varDeclaration()
 		return;
 	}
 	writeVariable(currentChunk(), OP_DEFINE_GLOBAL, global, line);
+}
+
+static void forStatement()
+{
+	beginScope();
+	consume(TOKEN_LEFT_PAREN, "Expect '(' after 'for'.");
+	if (match(TOKEN_SEMICOLON))
+	{
+	} else if (match(TOKEN_VAR)) {
+		varDeclaration();
+	} else {
+		expressionStatement();
+	}
+	int loop = currentChunk()->count;
+	int exit = -1;
+	if (!match(TOKEN_SEMICOLON))
+	{
+		expression();
+		consume(TOKEN_SEMICOLON, "Expect ';'.");
+		exit = emitJump(OP_JUMP_IF_FALSE);
+		emitByte(OP_POP);
+	}
+	if (!match(TOKEN_RIGHT_PAREN))
+	{
+		int bodyJump = emitJump(OP_JUMP);
+		int incStart = currentChunk()->count;
+		expression();
+		emitByte(OP_POP);
+		consume(TOKEN_RIGHT_PAREN, "Expect ')' after for clauses.");
+		emitLoop(loop);
+		loop = incStart;
+		patchJump(bodyJump);
+	}
+	statement();
+	emitLoop(loop);
+	if (exit != -1)
+	{
+		patchJump(exit);
+		emitByte(OP_POP);
+	}
+	endScope();
+}
+
+static void statement()
+{
+	if (match(TOKEN_PRINT))
+	{
+		printStatement();
+	} else if (match(TOKEN_IF)) {
+		ifStatement();
+	} else if (match(TOKEN_WHILE)) {
+		whileStatement();
+	} else if (match(TOKEN_FOR)) {
+		forStatement();
+	} else if (match(TOKEN_LEFT_BRACE)) {
+		beginScope();
+		block();
+		endScope();
+	} else {
+		expressionStatement();
+	}
 }
 
 static void declaration()
