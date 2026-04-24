@@ -2,7 +2,8 @@
 #define VALUE_H
 
 #include <stddef.h>
-#include "object.h"
+
+struct Obj;
 
 typedef enum
 {
@@ -19,7 +20,7 @@ typedef struct
 	{
 		double num;
 		size_t boolean;
-		Obj *obj;
+		struct Obj *obj;
 	};
 } Value;
 

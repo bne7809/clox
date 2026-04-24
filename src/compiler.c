@@ -4,6 +4,7 @@
 #include "chunk.h"
 #include "scanner.h"
 #include "int_array.h"
+#include "compiler.h"
 
 #ifdef DEBUG_PRINT_TOKENS
 #include "debug.h"
@@ -63,8 +64,17 @@ typedef struct
 	int depth;
 } Loop;
 
+typedef enum
+{
+	TYPE_FUNCTION,
+	TYPE_SCRIPT
+} FunctionType;
+
 typedef struct
 {
+	ObjFunction *function;
+	FunctionType type;
+
 	Local locals[UINT8_COUNT];
 	int localCount;
 	Loop loops[32];
@@ -136,14 +146,20 @@ ParseRule rules[] = {
 
 static Parser parser;
 Compiler *current;
-static Chunk *compilingChunk;
 
-static void initCompiler(Compiler *compiler)
+static void initCompiler(Compiler *compiler, FunctionType type)
 {
+	compiler->function = newFunction();
+	compiler->type = type;
 	compiler->localCount = 0;
 	compiler->loopCount = 0;
 	compiler->scopeDepth = 0;
 	current = compiler;
+
+	Local *local = &current->locals[current->localCount++];
+	local->depth = 0;
+	local->name.start = "";
+	local->name.length = 0;
 };
 
 void resetParser()
@@ -158,7 +174,7 @@ static ParseRule *getRule(TokenType type)
 
 static Chunk *currentChunk()
 {
-	return compilingChunk;
+	return &current->function->chunk;
 }
 
 static void errorAt(Token *token, const char *str)
@@ -730,22 +746,22 @@ static void declaration()
 	if (IS_PANIC) synchronize();
 }
 
-static void endCompiler()
+static ObjFunction *endCompiler()
 {
 	emitByte(OP_RETURN);
+	return current->function;
 }
 
-int compile(const char *source, Chunk *chunk)
+ObjFunction *compile(const char *source)
 {
 #ifdef DEBUG_PRINT_TOKENS
 	printTokens(source);
 #endif
 	initScanner(source);
 	Compiler compiler;
-	initCompiler(&compiler);
-	compilingChunk = chunk;
+	initCompiler(&compiler, TYPE_SCRIPT);
 	advance();
 	while (!match(TOKEN_EOF)) declaration();
-	endCompiler();
-	return !IS_ERROR;
+	ObjFunction *f = endCompiler();
+	return IS_ERROR ? NULL : f;
 }

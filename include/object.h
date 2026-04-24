@@ -2,10 +2,12 @@
 #define OBJECT_H
 
 #include <stdint.h>
+#include "chunk.h"
 
 typedef enum
 {
-	OBJ_STRING
+	OBJ_STRING,
+	OBJ_FUNCTION
 } ObjType;
 
 typedef struct Obj
@@ -21,6 +23,16 @@ typedef struct
 	int length;
 	char str[];
 } ObjString;
+
+typedef struct
+{
+	Obj obj;
+	int arity;
+	Chunk chunk;
+	ObjString *name;
+} ObjFunction;
+
+ObjFunction *newFunction();
 
 ObjString *copyString(const char *str, int length);
 ObjString *concat(ObjString *a, ObjString *b);

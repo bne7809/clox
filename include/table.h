@@ -2,6 +2,7 @@
 #define TABLE_H
 
 #include "value.h"
+#include "object.h"
 
 typedef struct
 {

@@ -469,7 +469,7 @@ InterpretResult interpret(const char *source, int repl)
 {
 	Chunk chunk;
 	initChunk(&chunk);
-	if (!compile(source, &chunk))
+	if (!compile(source))
 	{
 		freeChunk(&chunk);
 		if (repl) resetParser();

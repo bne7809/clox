@@ -2,7 +2,20 @@
 #include <stdio.h>
 #include <string.h>
 #include "vm.h"
+#include "memory.h"
 #include "object.h"
+
+ObjFunction *newFunction()
+{
+	ObjFunction *ret = ALLOCATE(ObjFunction, 1);
+	ret->obj.type = OBJ_FUNCTION;
+	ret->obj.next = vm.objects;
+	vm.objects = (Obj *)ret;
+	ret->arity = 0;
+	initChunk(&ret->chunk);
+	ret->name = NULL;
+	return ret;
+}
 
 static uint32_t hashString(const char *str, int length)
 {
@@ -84,6 +97,14 @@ void freeObject(Obj *obj)
 {
 	switch (obj->type)
 	{
+	case OBJ_FUNCTION:
+	{
+		ObjFunction *func = (ObjFunction *)obj;
+		freeChunk(&func->chunk);
+		free(func->name);
+		free(func);
+		break;
+	}
 	case OBJ_STRING: free(obj); break;
 	default: return;
 	}
@@ -93,6 +114,17 @@ void printObject(Obj *obj)
 {
 	switch (obj->type)
 	{
+	case OBJ_FUNCTION:
+	{
+		ObjFunction *func = (ObjFunction *)obj;
+		if (func->name == NULL)
+		{
+			printf("<script>");
+			break;
+		}
+		printf("<fn %s>", func->name->str);
+		break;
+	}
 	case OBJ_STRING: printf("%s", ((ObjString *)obj)->str); break;
 	default: return;
 	}
