@@ -1,7 +1,6 @@
 #ifndef VM_H
 #define VM_H
 
-#include "chunk.h"
 #include "table.h"
 
 #define FRAMES_MAX	64

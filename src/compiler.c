@@ -158,6 +158,7 @@ static void initCompiler(Compiler *compiler, FunctionType type)
 	compiler->loopCount = 0;
 	compiler->scopeDepth = 0;
 	current = compiler;
+	current->function->name = NULL;
 	if (type != TYPE_SCRIPT)
 	{
 		current->function->name = copyString(parser.prev.start, parser.prev.length);

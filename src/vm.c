@@ -485,6 +485,5 @@ InterpretResult interpret(const char *source, int repl)
 	frame->slots = vm.stack;
 
 	InterpretResult result = run();
-	freeObject((Obj *)f);
 	return result;
 }

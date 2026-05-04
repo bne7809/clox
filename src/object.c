@@ -101,7 +101,6 @@ void freeObject(Obj *obj)
 	{
 		ObjFunction *func = (ObjFunction *)obj;
 		freeChunk(&func->chunk);
-		free(func->name);
 		free(func);
 		break;
 	}
