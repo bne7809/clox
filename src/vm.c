@@ -13,6 +13,7 @@ VM vm;
 void initVM()
 {
 	vm.stackTop = vm.stack;
+	vm.frameCount = 0;
 	vm.objects = NULL;
 	initTable(&vm.globals);
 	initTable(&vm.strings);
@@ -55,6 +56,7 @@ static int isFalsey(Value val)
 
 static InterpretResult run()
 {
+	CallFrame *frame = &vm.frames[vm.frameCount - 1];
 #ifdef DEBUG_TRACE_EXECUTION
 	int curr_line = 0;
 	int total = 0;
@@ -72,23 +74,23 @@ static InterpretResult run()
 			printf(" ]");
 		}
 		printf("\n");
-		int offset = vm.ip - vm.chunk->code;
+		int offset = frame->ip - frame->function->chunk.code;
 		printf("%04d ", offset);
 		int line;
 		if (!trace_back)
 		{
 			while (total <= offset)
 			{
-				total += vm.chunk->lineData.data[lineDataIndex++].num;
+				total += frame->function->chunk.lineData.data[lineDataIndex++].num;
 			}
-			line = vm.chunk->lineData.data[lineDataIndex - 1].line;
+			line = frame->function->chunk.lineData.data[lineDataIndex - 1].line;
 		} else {
 			trace_back = 0;
 			while (total > offset)
 			{
-				total -= vm.chunk->lineData.data[--lineDataIndex].num;
+				total -= frame->function->chunk.lineData.data[--lineDataIndex].num;
 			}
-			line = vm.chunk->lineData.data[lineDataIndex].line;
+			line = frame->function->chunk.lineData.data[lineDataIndex].line;
 		}
 		if (offset > 0 && line == curr_line)
 		{
@@ -98,13 +100,13 @@ static InterpretResult run()
 			curr_line = line;
 		}
 #endif
-		uint8_t inst = *vm.ip++;
+		uint8_t inst = *frame->ip++;
 		switch (inst)
 		{
 		case OP_CONSTANT:
 		{
-			int const_index = *vm.ip++;
-			Value val = vm.chunk->constants.values[const_index];
+			int const_index = *frame->ip++;
+			Value val = frame->function->chunk.constants.values[const_index];
 #ifdef DEBUG_TRACE_EXECUTION
 			printf("%-16s %4d '", "OP_CONSTANT", const_index);
 			printValue(val);
@@ -115,11 +117,11 @@ static InterpretResult run()
 		}
 		case OP_CONSTANT_LONG:
 		{
-			uint8_t c1 = *vm.ip++;
-			uint8_t c2 = *vm.ip++;
-			uint8_t c3 = *vm.ip++;
+			uint8_t c1 = *frame->ip++;
+			uint8_t c2 = *frame->ip++;
+			uint8_t c3 = *frame->ip++;
 			int const_index = (c3 << 16) | (c2 << 8) | c1;
-			Value val = vm.chunk->constants.values[const_index];
+			Value val = frame->function->chunk.constants.values[const_index];
 #ifdef DEBUG_TRACE_EXECUTION
 			printf("%-16s %4d '", "OP_CONSTANT_LONG", const_index);
 			printValue(val);
@@ -130,26 +132,26 @@ static InterpretResult run()
 		}
 		case OP_GET_LOCAL:
 		{
-			int const_index = *vm.ip++;
+			int slot = *frame->ip++;
 #ifdef DEBUG_TRACE_EXECUTION
-			printf("%-16s %4d\n", "OP_GET_LOCAL", const_index);
+			printf("%-16s %4d\n", "OP_GET_LOCAL", slot);
 #endif
-			push(vm.stack[const_index]);
+			push(frame->slots[slot]);
 			break;
 		}
 		case OP_SET_LOCAL:
 		{
-			int const_index = *vm.ip++;
+			int slot = *frame->ip++;
 #ifdef DEBUG_TRACE_EXECUTION
-			printf("%-16s %4d\n", "OP_SET_LOCAL", const_index);
+			printf("%-16s %4d\n", "OP_SET_LOCAL", slot);
 #endif
-			vm.stack[const_index] = vm.stackTop[-1];
+			frame->slots[slot] = vm.stackTop[-1];
 			break;
 		}
 		case OP_DEFINE_GLOBAL:
 		{
-			int const_index = *vm.ip++;
-			ObjString *name = (ObjString *)vm.chunk->constants.values[const_index].obj;
+			int const_index = *frame->ip++;
+			ObjString *name = (ObjString *)frame->function->chunk.constants.values[const_index].obj;
 #ifdef DEBUG_TRACE_EXECUTION
 			printf("%-16s %4d '", "OP_DEFINE_GLOBAL", const_index);
 			printObject((Obj *)name);
@@ -160,11 +162,11 @@ static InterpretResult run()
 		}
 		case OP_DEFINE_GLOBAL_LONG:
 		{
-			uint8_t c1 = *vm.ip++;
-			uint8_t c2 = *vm.ip++;
-			uint8_t c3 = *vm.ip++;
+			uint8_t c1 = *frame->ip++;
+			uint8_t c2 = *frame->ip++;
+			uint8_t c3 = *frame->ip++;
 			int const_index = (c3 << 16) | (c2 << 8) | c1;
-			ObjString *name = (ObjString *)vm.chunk->constants.values[const_index].obj;
+			ObjString *name = (ObjString *)frame->function->chunk.constants.values[const_index].obj;
 #ifdef DEBUG_TRACE_EXECUTION
 			printf("%-16s %4d '", "OP_DEFINE_GLOBAL_LONG", const_index);
 			printObject((Obj *)name);
@@ -175,8 +177,8 @@ static InterpretResult run()
 		}
 		case OP_GET_GLOBAL:
 		{
-			int const_index = *vm.ip++;
-			ObjString *name = (ObjString *)vm.chunk->constants.values[const_index].obj;
+			int const_index = *frame->ip++;
+			ObjString *name = (ObjString *)frame->function->chunk.constants.values[const_index].obj;
 #ifdef DEBUG_TRACE_EXECUTION
 			printf("%-16s %4d '", "OP_GET_GLOBAL", const_index);
 			printObject((Obj *)name);
@@ -194,11 +196,11 @@ static InterpretResult run()
 		}
 		case OP_GET_GLOBAL_LONG:
 		{
-			uint8_t c1 = *vm.ip++;
-			uint8_t c2 = *vm.ip++;
-			uint8_t c3 = *vm.ip++;
+			uint8_t c1 = *frame->ip++;
+			uint8_t c2 = *frame->ip++;
+			uint8_t c3 = *frame->ip++;
 			int const_index = (c3 << 16) | (c2 << 8) | c1;
-			ObjString *name = (ObjString *)vm.chunk->constants.values[const_index].obj;
+			ObjString *name = (ObjString *)frame->function->chunk.constants.values[const_index].obj;
 #ifdef DEBUG_TRACE_EXECUTION
 			printf("%-16s %4d '", "OP_GET_GLOBAL_LONG", const_index);
 			printObject((Obj *)name);
@@ -216,8 +218,8 @@ static InterpretResult run()
 		}
 		case OP_SET_GLOBAL:
 		{
-			int const_index = *vm.ip++;
-			ObjString *name = (ObjString *)vm.chunk->constants.values[const_index].obj;
+			int const_index = *frame->ip++;
+			ObjString *name = (ObjString *)frame->function->chunk.constants.values[const_index].obj;
 #ifdef DEBUG_TRACE_EXECUTION
 			printf("%-16s %4d '", "OP_SET_GLOBAL", const_index);
 			printObject((Obj *)name);
@@ -233,11 +235,11 @@ static InterpretResult run()
 		}
 		case OP_SET_GLOBAL_LONG:
 		{
-			uint8_t c1 = *vm.ip++;
-			uint8_t c2 = *vm.ip++;
-			uint8_t c3 = *vm.ip++;
+			uint8_t c1 = *frame->ip++;
+			uint8_t c2 = *frame->ip++;
+			uint8_t c3 = *frame->ip++;
 			int const_index = (c3 << 16) | (c2 << 8) | c1;
-			ObjString *name = (ObjString *)vm.chunk->constants.values[const_index].obj;
+			ObjString *name = (ObjString *)frame->function->chunk.constants.values[const_index].obj;
 #ifdef DEBUG_TRACE_EXECUTION
 			printf("%-16s %4d '", "OP_SET_GLOBAL_LONG", const_index);
 			printObject((Obj *)name);
@@ -253,36 +255,36 @@ static InterpretResult run()
 		}
 		case OP_JUMP_IF_FALSE:
 		{
-			uint8_t c1 = *vm.ip++;
-			uint8_t c2 = *vm.ip++;
+			uint8_t c1 = *frame->ip++;
+			uint8_t c2 = *frame->ip++;
 			int jump = (c1 << 8) | c2;
 #ifdef DEBUG_TRACE_EXECUTION
 			printf("%-16s %4d -> %d\n", "OP_JUMP_IF_FALSE", offset, offset + 3 + jump);
 #endif
-			if (isFalsey(vm.stackTop[-1])) vm.ip += jump;
+			if (isFalsey(vm.stackTop[-1])) frame->ip += jump;
 			break;
 		}
 		case OP_JUMP:
 		{
-			uint8_t c1 = *vm.ip++;
-			uint8_t c2 = *vm.ip++;
+			uint8_t c1 = *frame->ip++;
+			uint8_t c2 = *frame->ip++;
 			int jump = (c1 << 8) | c2;
 #ifdef DEBUG_TRACE_EXECUTION
 			printf("%-16s %4d -> %d\n", "OP_JUMP", offset, offset + 3 + jump);
 #endif
-			vm.ip += jump;
+			frame->ip += jump;
 			break;
 		}
 		case OP_LOOP:
 		{
-			uint8_t c1 = *vm.ip++;
-			uint8_t c2 = *vm.ip++;
+			uint8_t c1 = *frame->ip++;
+			uint8_t c2 = *frame->ip++;
 			int jump = (c1 << 8) | c2;
 #ifdef DEBUG_TRACE_EXECUTION
 			printf("%-16s %4d -> %d\n", "OP_LOOP", offset, offset + 3 - jump);
 			trace_back = 1;
 #endif
-			vm.ip -= jump;
+			frame->ip -= jump;
 			break;
 		}
 		case OP_NIL:
@@ -467,20 +469,22 @@ static InterpretResult run()
 
 InterpretResult interpret(const char *source, int repl)
 {
-	Chunk chunk;
-	initChunk(&chunk);
-	if (!compile(source))
+	ObjFunction *f = compile(source);
+	if (!f)
 	{
-		freeChunk(&chunk);
 		if (repl) resetParser();
 		return INTERPRET_COMPILE_ERROR;
 	}
 #ifdef DEBUG_TRACE_EXECUTION
-	disassembleChunk(&chunk, "code");
+	disassembleChunk(&f->chunk, "code");
 #endif
-	vm.chunk = &chunk;
-	vm.ip = chunk.code;
+	push((Value) {.type = VAL_OBJ, .obj = (Obj *)f});
+	CallFrame *frame = &vm.frames[vm.frameCount++];
+	frame->function = f;
+	frame->ip = f->chunk.code;
+	frame->slots = vm.stack;
+
 	InterpretResult result = run();
-	freeChunk(&chunk);
+	freeObject((Obj *)f);
 	return result;
 }

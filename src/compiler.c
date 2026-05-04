@@ -70,8 +70,10 @@ typedef enum
 	TYPE_SCRIPT
 } FunctionType;
 
-typedef struct
+typedef struct Compiler
 {
+	struct Compiler *enclosing;
+
 	ObjFunction *function;
 	FunctionType type;
 
@@ -149,12 +151,17 @@ Compiler *current;
 
 static void initCompiler(Compiler *compiler, FunctionType type)
 {
+	compiler->enclosing = current;
 	compiler->function = newFunction();
 	compiler->type = type;
 	compiler->localCount = 0;
 	compiler->loopCount = 0;
 	compiler->scopeDepth = 0;
 	current = compiler;
+	if (type != TYPE_SCRIPT)
+	{
+		current->function->name = copyString(parser.prev.start, parser.prev.length);
+	}
 
 	Local *local = &current->locals[current->localCount++];
 	local->depth = 0;
@@ -739,17 +746,58 @@ static void statement()
 	}
 }
 
-static void declaration()
-{
-	if (match(TOKEN_VAR)) varDeclaration();
-	else statement();
-	if (IS_PANIC) synchronize();
-}
-
 static ObjFunction *endCompiler()
 {
 	emitByte(OP_RETURN);
-	return current->function;
+	ObjFunction *f = current->function;
+	current = current->enclosing;
+	return f;
+}
+
+static void function(FunctionType type)
+{
+	Compiler compiler;
+	initCompiler(&compiler, type);
+	beginScope();
+	consume(TOKEN_LEFT_PAREN, "Expect '(' after function name.");
+	if (!check(TOKEN_RIGHT_PAREN))
+	{
+		do {
+			if (++current->function->arity > 255)
+			{
+				errorAtCurrent("Can't have more than 255 parameters.");
+				uint8_t constant = parseVariable("Expect parameter name.");
+				if (current->scopeDepth == 0)
+				{
+					writeVariable(currentChunk(), OP_DEFINE_GLOBAL, constant, parser.prev.line);
+				}
+			}
+		} while (match(TOKEN_COMMA));
+	}
+	consume(TOKEN_RIGHT_PAREN, "Expect ')' after parameters.");
+	consume(TOKEN_LEFT_BRACE, "Expect '{' before function body.");
+	block();
+	ObjFunction *f = endCompiler();
+	emitConstant((Value){.type = VAL_OBJ, .obj = (Obj *)f});
+}
+
+static void funDeclaration()
+{
+	uint8_t global = parseVariable("Expect function name.");
+	if (current->scopeDepth != 0)
+	{
+		current->locals[current->localCount - 1].depth = current->scopeDepth;
+	}
+	function(TYPE_FUNCTION);
+	writeVariable(currentChunk(), OP_DEFINE_GLOBAL, global, parser.prev.line);
+}
+
+static void declaration()
+{
+	if (match(TOKEN_FUN)) funDeclaration();
+	else if (match(TOKEN_VAR)) varDeclaration();
+	else statement();
+	if (IS_PANIC) synchronize();
 }
 
 ObjFunction *compile(const char *source)
