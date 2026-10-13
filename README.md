@@ -20,7 +20,7 @@ Under the hood it uses a hash table for global variables and for string internin
 
 - **Long constant operands** — `OP_CONSTANT_LONG` and the `*_LONG` global-variable opcodes use a 24-bit operand, so a chunk can hold more than 256 constants.
 - **Run-length-encoded line information** — line numbers are stored compactly as run-length data rather than one entry per instruction, including the logic to walk that encoding backwards when a loop jumps back, so the debug tracer still reports the correct source line.
-- **Additional language features — added switch statements, continue in loops, and a ternary (?:) operator, each compiled down to the existing jump/loop bytecode.
+- **Additional language features** — added switch statements, continue in loops, and a ternary (?:) operator, each compiled down to the existing jump/loop bytecode.
 
 ## Build
 
